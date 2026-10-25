@@ -23,7 +23,7 @@ The Swiggy script also needs Google Chrome installed. Selenium 4.6+ downloads th
 **Run it from GitHub (nothing to install):**
 1. Open the repo's **Actions** tab → **Scrape menu** → **Run workflow**.
 2. Paste one or more Zomato restaurant links, separated by commas, and click **Run workflow**.
-3. When the run finishes (about a minute), open it and download **menu-spreadsheets** under Artifacts.
+3. When the run finishes (under a minute), click it. You get a results page with each restaurant's rating, offers, opening hours, price range and full menu, plus a side-by-side comparison when you scrape several. Download the Excel files from **Artifacts** at the bottom of that page.
 
 Swiggy blocks requests from cloud servers, GitHub's included, so Swiggy links only work with the double-click launcher on your own computer. On GitHub you can still upload a saved Swiggy menu JSON to the `swiggy-json/` folder (**Add file → Upload files**) and the workflow runs on its own. You can fork the repo to get your own copy of the workflow.
 
