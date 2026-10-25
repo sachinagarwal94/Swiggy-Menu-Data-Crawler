@@ -27,6 +27,23 @@ The Swiggy script also needs Google Chrome installed. Selenium 4.6+ downloads th
 
 Swiggy blocks requests from cloud servers, GitHub's included, so Swiggy links only work with the double-click launcher on your own computer. On GitHub you can still upload a saved Swiggy menu JSON to the `swiggy-json/` folder (**Add file → Upload files**) and the workflow runs on its own. You can fork the repo to get your own copy of the workflow.
 
+**Swiggy without installing anything: the "Get Swiggy Menu" bookmark**
+
+Swiggy blocks cloud servers, so Swiggy menus are saved from your own browser and turned into Excel on GitHub.
+
+One-time setup (Chrome or Edge):
+1. Show the bookmarks bar: **Ctrl+Shift+B** (Mac: **Cmd+Shift+B**).
+2. Right-click the bookmarks bar → **Add page…** (Edge: **Add favourite**).
+3. Name: `Get Swiggy Menu`. URL: copy the whole line from [`bookmarklet/bookmark-url.txt`](bookmarklet/bookmark-url.txt) (it starts with `javascript:`). Save.
+
+Each time:
+1. Open the restaurant on swiggy.com (set your delivery location if asked) and wait for the menu to show.
+2. Click **Get Swiggy Menu** on the bookmarks bar. The menu is saved to your Downloads as `Swiggy_<id>_<date>.json`, and it offers to open GitHub.
+3. On the GitHub page that opens, drag the file in and click **Commit changes**.
+4. Open the **Actions** tab: a run starts by itself, and in under a minute its page has the results and the Excel download.
+
+The bookmark only reads the menu your browser tab is already showing, the same as saving the page; the readable source is [`bookmarklet/get-swiggy-menu.js`](bookmarklet/get-swiggy-menu.js).
+
 **Usage (on your computer):**
 
 The easiest way is `menu_scraper.py`, which takes any mix of links, comma separated:
