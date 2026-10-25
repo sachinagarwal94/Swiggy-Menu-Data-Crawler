@@ -1,5 +1,5 @@
 __pycache__/
 *.pyc
 *_menu.xlsx
-Swiggy_menu_response.json
+Swiggy_*.json
 output/*.xlsx

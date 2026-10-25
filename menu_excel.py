@@ -1,8 +1,10 @@
 import re
+from datetime import date
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
-RESTAURANT_HEADERS = ['Restaurant Name', 'Restaurant Address', 'Restaurant Rating', 'FSSAI License No.', 'Source URL']
+RESTAURANT_HEADERS = ['Restaurant Name', 'Restaurant ID', 'Restaurant Address', 'Restaurant Rating', 'Cuisines',
+                      'Cost for Two', 'Delivery Time', 'FSSAI License No.', 'Scraped On', 'Source URL']
 MENU_HEADERS = ['Category', 'Sub-category', 'Item Name', 'Description', 'Price', 'Veg/Non-veg', 'In Stock', 'Tags',
                 'Price Note']
 OFFER_HEADERS = ['Offer', 'Coupon Code', 'Details']
@@ -39,6 +41,7 @@ def save_menu_workbook(restaurant, items, platform, offers=(), addons=(), outlet
 
     # Restaurant details block
     worksheet.append(RESTAURANT_HEADERS)
+    restaurant = dict(restaurant, **{'Scraped On': date.today().isoformat()})
     worksheet.append([restaurant.get(h, '') for h in RESTAURANT_HEADERS])
     worksheet.append([])
 
@@ -60,7 +63,7 @@ def save_menu_workbook(restaurant, items, platform, offers=(), addons=(), outlet
     for item in items:
         worksheet.append([item.get(h, '') for h in MENU_HEADERS])
 
-    for column, width in zip('ABCDEFGHI', (28, 24, 40, 60, 10, 12, 10, 30, 36)):
+    for column, width in zip('ABCDEFGHIJ', (28, 24, 40, 60, 12, 14, 12, 30, 36, 50)):
         worksheet.column_dimensions[column].width = width
 
     # Add-ons, variants and customisations: one row per option
@@ -88,7 +91,8 @@ def save_menu_workbook(restaurant, items, platform, offers=(), addons=(), outlet
 
     # Restaurant names can contain characters that are not valid in file names
     safe_name = re.sub(r'[\\/:*?"<>|]+', '-', restaurant.get('Restaurant Name') or 'restaurant').strip()
-    file_name = f"{platform}_{safe_name}_menu.xlsx"
+    restaurant_id = restaurant.get('Restaurant ID') or 'unknown'
+    file_name = f"{platform}_{safe_name}_{restaurant_id}_{restaurant['Scraped On']}.xlsx"
     workbook.save(file_name)
     print(f"{len(offers)} offers, {len(items)} menu items and {len(addons)} add-on options saved to {file_name}")
     return file_name

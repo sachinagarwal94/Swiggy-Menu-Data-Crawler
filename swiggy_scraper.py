@@ -1,6 +1,8 @@
 import json
+import re
 import sys
 import time
+from datetime import date
 
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -92,7 +94,7 @@ def parse_item(item_card, category, sub_category):
     return {
         'Category': category,
         'Sub-category': sub_category,
-        'Item Name': info.get('name', ''),
+        'Item Name': clean(info.get('name')),
         'Description': info.get('description', ''),
         'Price': price,
         'Veg/Non-veg': veg,
@@ -102,6 +104,11 @@ def parse_item(item_card, category, sub_category):
     }
 
 
+def clean(text):
+    # Names often carry stray spaces and non-breaking spaces
+    return ' '.join((text or '').split())
+
+
 def veg_label(option):
     return {1: 'VEG', 0: 'NONVEG'}.get(option.get('isVeg'), '')
 
@@ -109,11 +116,11 @@ def veg_label(option):
 def parse_addons(item_card, category):
     """One row per option: size/variant choices first, then add-on groups (extra cheese, dips...)."""
     info = item_card.get('card', {}).get('info', {})
-    base = {'Category': category, 'Item Name': info.get('name', '')}
+    base = {'Category': category, 'Item Name': clean(info.get('name'))}
     rows = []
 
-    # Variant groups (e.g. size, crust). Older menus use 'variants', newer ones 'variantsV2';
-    # their variation prices are the extra cost in rupees
+    # Variant groups (e.g. size, milk). Older menus use 'variants', newer ones 'variantsV2';
+    # variation prices are the extra cost in paise, like everything else
     variant_groups = ((info.get('variantsV2') or {}).get('variantGroups')
                       or (info.get('variants') or {}).get('variantGroups') or [])
     for group in variant_groups:
@@ -123,7 +130,7 @@ def parse_addons(item_card, category):
                 'Required': 'Yes',
                 'Max Choices': 1,
                 'Option': option.get('name', ''),
-                'Extra Price': option.get('price', 0),
+                'Extra Price': paise_to_rupees(option.get('price') or 0),
                 'Veg/Non-veg': veg_label(option),
                 'In Stock': 'No' if option.get('inStock') == 0 else 'Yes',
             }))
@@ -151,9 +158,23 @@ def item_tags(info):
     return [tag for tag in tags if tag]
 
 
+DISCOUNT_LABELS = {'FREE_DELIVERY': 'Free delivery', 'Percentage': 'Percentage discount', 'Flat': 'Flat discount',
+                   'FREEBIE': 'Free item', 'BOGO': 'Buy 1 Get 1'}
+
+
 def parse_offers(data):
     """Restaurant offers, e.g. '60% OFF UPTO ₹120' with coupon code and conditions."""
     offers = []
+    # The restaurant card summarises active discounts, e.g. free delivery
+    for restaurant in find_cards(data, 'Restaurant'):
+        info = restaurant.get('info', {})
+        discounts = (info.get('aggregatedDiscountInfoV2') or info.get('aggregatedDiscountInfo') or {})
+        for discount in discounts.get('descriptionList', []):
+            label = discount.get('header') or DISCOUNT_LABELS.get(discount.get('discountType'),
+                                                                   discount.get('discountType', ''))
+            if label:
+                offers.append({'Offer': label, 'Coupon Code': '',
+                               'Details': discount.get('description', '')})
     for offer_group in find_cards(data, 'OfferInfoWithStyle'):
         for offer in offer_group.get('offers', []):
             info = offer.get('info', {})
@@ -185,10 +206,15 @@ def parse_menu(data, url):
     if rating and info.get('totalRatingsString'):
         rating = f"{rating} ({info['totalRatingsString']})"
 
+    sla = info.get('sla') or {}
     restaurant = {
-        'Restaurant Name': info.get('name', ''),
+        'Restaurant Name': clean(info.get('name')),
+        'Restaurant ID': info.get('id', ''),
         'Restaurant Address': address,
         'Restaurant Rating': rating,
+        'Cuisines': ', '.join(info.get('cuisines') or []),
+        'Cost for Two': info.get('costForTwoMessage', ''),
+        'Delivery Time': ' / '.join(part for part in (sla.get('slaString'), sla.get('lastMileTravelString')) if part),
         'FSSAI License No.': license_text.replace('License No.', '').strip(),
         'Source URL': url,
     }
@@ -216,7 +242,8 @@ def crawl_menu_data(url, headless=False):
     finally:
         driver.quit()
     # Keep the raw response so it can be re-processed (python swiggy_scraper.py --json <file>)
-    raw_file = 'Swiggy_menu_response.json'
+    match = re.search(r'(?:rest|restaurantId=)(\d+)', url)
+    raw_file = f"Swiggy_{match.group(1) if match else 'menu'}_{date.today().isoformat()}.json"
     with open(raw_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False)
     print(f'Raw menu JSON saved to {raw_file}')

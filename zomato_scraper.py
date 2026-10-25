@@ -54,6 +54,8 @@ def crawl_menu_data(url):
     fssai_text = (menu_list.get('fssaiInfo') or {}).get('text', '')
     restaurant = {
         'Restaurant Name': basic_info.get('name', ''),
+        'Restaurant ID': basic_info.get('res_id') or next(iter(restaurants)),
+        'Cuisines': basic_info.get('cuisine_string', ''),
         'Restaurant Address': contact.get('address', ''),
         'Restaurant Rating': rating,
         'FSSAI License No.': re.sub(r'^\s*Lic\.?\s*No\.?\s*', '', fssai_text),

@@ -13,12 +13,20 @@ The Swiggy script also needs Google Chrome installed. Selenium 4.6+ downloads th
 
 **Run it from GitHub (nothing to install):**
 1. Open the repo's **Actions** tab → **Scrape menu** → **Run workflow**.
-2. Paste a Zomato restaurant URL and click **Run workflow**.
+2. Paste one or more Zomato restaurant links, separated by commas, and click **Run workflow**.
 3. When the run finishes (about a minute), open it and download **menu-spreadsheets** under Artifacts.
 
 Swiggy blocks requests from cloud servers, GitHub's included, so for Swiggy save the menu JSON from your browser (see below), upload it to the `swiggy-json/` folder on GitHub (**Add file → Upload files**), and the workflow runs on its own. You can fork the repo to get your own copy of the workflow.
 
-**Usage:**
+**Usage (on your computer):**
+
+The easiest way is `menu_scraper.py`, which takes any mix of links, comma separated:
+```
+python menu_scraper.py "https://www.zomato.com/mumbai/starbucks-coffee-kharghar-navi-mumbai/order, https://www.swiggy.com/city/mumbai/starbucks-coffee-sector-12-rest659800"
+```
+Run it without links and it asks for them. It works out which site each link is from, keeps going if one fails, and saves each menu as `<Swiggy|Zomato>_<Restaurant>_<Restaurant ID>_<date>.xlsx`, e.g. `Swiggy_Starbucks Coffee_659800_2026-10-25.xlsx`. Links can also be Swiggy menu API links (`swiggy.com/dapi/menu/...`) or saved Swiggy `.json` files.
+
+The individual scripts still work on their own:
 
 Zomato (no browser needed):
 ```
@@ -32,16 +40,16 @@ python swiggy_scraper.py https://www.swiggy.com/city/bangalore/<restaurant-slug>
 ```
 Swiggy runs a bot check and shows menus by delivery location. If it asks for a location or shows a check, complete it in the Chrome window. The script waits up to 90 seconds for the menu to load. `--headless` hides the window, but Swiggy often blocks headless browsers.
 
-Each Swiggy run also saves the raw menu response as `Swiggy_menu_response.json`. To re-process a saved response, including one copied from Chrome DevTools (Network tab → the `menu/pl?...` request → Response), run:
+Each Swiggy run also saves the raw menu response as `Swiggy_<Restaurant ID>_<date>.json`. To re-process a saved response, including one copied from Chrome DevTools (Network tab → the `menu/pl?...` request → Response), run:
 ```
-python swiggy_scraper.py --json Swiggy_menu_response.json
+python swiggy_scraper.py --json Swiggy_659800_2026-10-25.json
 ```
 
 Run either script without a URL and it will ask for one.
 
 **Output:**
-`Swiggy_<Restaurant Name>_menu.xlsx` or `Zomato_<Restaurant Name>_menu.xlsx`, with:
-- Restaurant details: name, address, rating, FSSAI license number, source URL
+`<Swiggy|Zomato>_<Restaurant>_<Restaurant ID>_<date>.xlsx`, with:
+- Restaurant details: name, restaurant ID, address, rating with review count, cuisines, cost for two, delivery time and distance (Swiggy), FSSAI license number, date scraped, source URL
 - Offers: offer, coupon code, details
 - Menu items: category, sub-category, item name, description, price (₹), veg/non-veg, in stock, tags (e.g. Bestseller, NEW, item discounts, "Not eligible for coupons"), price note
 - A **Nearby Outlets** sheet (Zomato): other outlets of the same chain with locality, address, delivery and dining ratings with review counts, cost for two and distance. Zomato only puts the first ~9 outlets in the page, ordered by its default location for the city, so this isn't every outlet and isn't sorted by distance from the one you scraped
