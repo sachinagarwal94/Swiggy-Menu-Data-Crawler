@@ -1,0 +1,52 @@
+name: Scrape menu
+
+on:
+  # Run from the Actions tab: Actions → Scrape menu → Run workflow
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'Zomato / Swiggy restaurant links, comma separated'
+        required: true
+  # Or upload a saved Swiggy menu JSON into swiggy-json/ from the GitHub website
+  push:
+    paths:
+      - 'swiggy-json/**.json'
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scrape menus
+        working-directory: output
+        env:
+          URLS: ${{ inputs.urls }}
+        run: |
+          targets="$URLS"
+          if [ -z "$targets" ]; then
+            # Push trigger: the Swiggy JSON files added or changed by this push
+            targets=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- '../swiggy-json/*.json' | sed 's|^|../|' | paste -sd, -)
+          fi
+          echo "Scraping: $targets"
+          # Keep going if some links fail, so the files that worked are still uploaded
+          python ../menu_scraper.py "$targets" || echo "::warning::Some links failed, see the log above"
+
+      - name: Upload spreadsheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: menu-spreadsheets
+          path: output/*.xlsx
+          if-no-files-found: error

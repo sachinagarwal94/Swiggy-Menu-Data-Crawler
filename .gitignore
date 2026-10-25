@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*_menu.xlsx
+Swiggy_*.json
+output/*.xlsx
+.venv/
