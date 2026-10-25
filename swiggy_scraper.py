@@ -1,3 +1,4 @@
+import base64
 import json
 import re
 import sys
@@ -43,7 +44,10 @@ def capture_menu_json(driver, url):
         # Newest response first: the page re-requests the menu after a location change
         for request_id in reversed(menu_request_ids):
             try:
-                body = driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': request_id})['body']
+                response = driver.execute_cdp_cmd('Network.getResponseBody', {'requestId': request_id})
+                body = response['body']
+                if response.get('base64Encoded'):
+                    body = base64.b64decode(body).decode('utf-8')
                 data = json.loads(body)
             except Exception:
                 continue  # Body not finished downloading yet, or not JSON

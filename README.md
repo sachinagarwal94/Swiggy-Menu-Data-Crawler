@@ -5,7 +5,16 @@ Python scripts that extract a restaurant's menu from Swiggy or Zomato and save i
 
 Both scripts read the structured menu data the sites themselves load, instead of scraping CSS class names. The class names change with every site release, which is what broke the old script.
 
-**Setup:**
+**Easiest way: double-click (no coding)**
+1. Install Python once from https://www.python.org/downloads/ (on Windows, tick **"Add python.exe to PATH"** in the installer). Also have Google Chrome installed.
+2. On this repo's GitHub page, click **Code → Download ZIP** and unzip it.
+3. Double-click **Run Menu Scraper (Windows).bat** or **Run Menu Scraper (Mac).command**. On Mac, the first time, right-click it → **Open** → **Open**.
+4. Paste your Swiggy and Zomato links, separated by commas, and press Enter.
+5. For each Swiggy link a Chrome window opens and closes by itself; if Swiggy asks for a location, set it in that window. When it finishes, the **output** folder opens with your Excel files.
+
+The first run takes a minute or two to set up; later runs start straight away.
+
+**Setup (if you run the scripts yourself):**
 ```
 pip install -r requirements.txt
 ```
@@ -16,7 +25,7 @@ The Swiggy script also needs Google Chrome installed. Selenium 4.6+ downloads th
 2. Paste one or more Zomato restaurant links, separated by commas, and click **Run workflow**.
 3. When the run finishes (about a minute), open it and download **menu-spreadsheets** under Artifacts.
 
-Swiggy blocks requests from cloud servers, GitHub's included, so for Swiggy save the menu JSON from your browser (see below), upload it to the `swiggy-json/` folder on GitHub (**Add file → Upload files**), and the workflow runs on its own. You can fork the repo to get your own copy of the workflow.
+Swiggy blocks requests from cloud servers, GitHub's included, so Swiggy links only work with the double-click launcher on your own computer. On GitHub you can still upload a saved Swiggy menu JSON to the `swiggy-json/` folder (**Add file → Upload files**) and the workflow runs on its own. You can fork the repo to get your own copy of the workflow.
 
 **Usage (on your computer):**
 
