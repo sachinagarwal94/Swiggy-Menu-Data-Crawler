@@ -4,7 +4,7 @@ import sys
 
 import requests
 
-from menu_excel import save_menu_workbook
+from menu_excel import add_missing_gst, save_menu_workbook
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -60,7 +60,8 @@ def crawl_menu_data(url):
         'Source URL': order_url,
     }
 
-    items = []
+    modifier_groups = menu_list.get('modifierGroups') or {}
+    items, addons = [], []
     for menu_wrapper in menu_list.get('menus', []):
         menu = menu_wrapper.get('menu', {})
         for category_wrapper in menu.get('categories', []):
@@ -69,6 +70,7 @@ def crawl_menu_data(url):
                 item = item_wrapper.get('item', {})
                 dietary = item.get('dietary_slugs') or []
                 price = item.get('display_price') or item.get('min_price') or item.get('price') or ''
+                price, price_note = add_missing_gst(price)
                 items.append({
                     'Category': menu.get('name', ''),
                     'Sub-category': category.get('name', ''),
@@ -78,12 +80,42 @@ def crawl_menu_data(url):
                     'Veg/Non-veg': ', '.join(dietary),
                     'In Stock': 'Yes' if item.get('item_state', 'available') == 'available' else 'No',
                     'Tags': ', '.join(item_tags(item)),
+                    'Price Note': price_note,
                 })
+                addons += parse_addons(item, menu.get('name', ''), modifier_groups)
 
     if not items:
         raise RuntimeError('Restaurant found but no menu items. It may not deliver to this area right now.')
     offers = [parse_promo(promo) for promo in (menu_list.get('promosOnMenu') or {}).get('promos', [])]
-    return restaurant, [offer for offer in offers if offer['Offer']], items
+    return restaurant, [offer for offer in offers if offer['Offer']], items, addons
+
+
+def parse_addons(item, category, modifier_groups, group_ids=None, prefix=''):
+    """One row per option in each customisation group (size, milk, syrups, extra toppings...).
+
+    Options can open further groups of their own; those are listed with the option path as prefix.
+    """
+    rows = []
+    for group_id in item.get('modifier_group_ids', []) if group_ids is None else group_ids:
+        group = (modifier_groups.get(group_id) or {}).get('group', {})
+        group_name = prefix + group.get('name', '')
+        for option_wrapper in group.get('items', []):
+            option = option_wrapper.get('item', {})
+            rows.append({
+                'Category': category,
+                'Item Name': item.get('name', ''),
+                'Group': group_name,
+                'Required': 'Yes' if group.get('min', 0) > 0 else 'No',
+                'Max Choices': group.get('max', ''),
+                'Option': option.get('name', ''),
+                'Extra Price': option.get('price', 0),
+                'Veg/Non-veg': ', '.join(option.get('dietary_slugs') or []),
+                'In Stock': 'Yes' if option.get('item_state', 'available') == 'available' else 'No',
+            })
+            if option.get('modifier_group_ids'):
+                rows += parse_addons(item, category, modifier_groups, option['modifier_group_ids'],
+                                     f"{group_name} > {option.get('name', '')} > ")
+    return rows
 
 
 def item_tags(item):
@@ -114,8 +146,8 @@ def parse_promo(promo):
 
 
 def save_menu_data(url):
-    restaurant, offers, items = crawl_menu_data(url)
-    return save_menu_workbook(restaurant, items, 'Zomato', offers)
+    restaurant, offers, items, addons = crawl_menu_data(url)
+    return save_menu_workbook(restaurant, items, 'Zomato', offers, addons)
 
 
 if __name__ == '__main__':
