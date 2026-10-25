@@ -45,17 +45,21 @@ jobs:
           # Keep going if some links fail, so the files that worked are still uploaded
           python ../menu_scraper.py "$targets" || echo "::warning::Some links failed, see the log above"
 
-      - name: Build results page
-        if: always()
-        run: python summary.py output "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> "$GITHUB_STEP_SUMMARY"
-
       - name: Set download name
         if: always()
         run: echo "TODAY=$(date +%Y-%m-%d)" >> "$GITHUB_ENV"
 
       - name: Upload spreadsheets
+        id: upload
         uses: actions/upload-artifact@v4
         with:
           name: menus-${{ env.TODAY }}
           path: output/*.xlsx
           if-no-files-found: error
+
+      # After the upload, so the page can link straight to the zip download
+      - name: Build results page
+        if: always()
+        env:
+          DOWNLOAD_URL: ${{ steps.upload.outputs.artifact-url }}
+        run: python summary.py output "$DOWNLOAD_URL" >> "$GITHUB_STEP_SUMMARY"

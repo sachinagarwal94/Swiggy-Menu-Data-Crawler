@@ -1,6 +1,6 @@
 """Build a results page (GitHub Actions job summary) from the scraped Excel files.
 
-Usage: python summary.py <folder with .xlsx files> [run URL]
+Usage: python summary.py <folder with .xlsx files> [download URL of the uploaded zip]
 Prints Markdown; the workflow appends it to $GITHUB_STEP_SUMMARY.
 """
 import glob
@@ -146,7 +146,7 @@ def comparison(results):
 
 def main():
     folder = sys.argv[1] if len(sys.argv) > 1 else '.'
-    run_url = sys.argv[2] if len(sys.argv) > 2 else ''
+    download_url = sys.argv[2] if len(sys.argv) > 2 else ''
     results = [read_workbook(path) for path in sorted(glob.glob(os.path.join(folder, '*.xlsx')))]
 
     out = ['# 🍽️ Menu Scraper', '']
@@ -162,8 +162,9 @@ def main():
         print('\n'.join(out))
         return
     scraped_on = results[0]['restaurant'].get('Scraped On', '')
-    download = f'[⬇️ Download the Excel files]({run_url}#artifacts)' if run_url else '⬇️ Download the Excel files from **Artifacts** below'
-    out += [f"**{len(results)} menu{'s' if len(results) != 1 else ''} scraped** on {scraped_on} · {download}", '']
+    download = (f'### [⬇️ Download the Excel files (zip)]({download_url})' if download_url
+                else '⬇️ Download the Excel files from **Artifacts** at the bottom of this page')
+    out += [download, '', f"**{len(results)} menu{'s' if len(results) != 1 else ''} scraped** on {scraped_on}", '']
     if len(results) > 1:
         out += ['### 📊 Side by side', '', comparison(results), '']
     out += [restaurant_card(data) + '\n\n---\n' for data in results]
