@@ -7,7 +7,7 @@ from datetime import date
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 
-from menu_excel import add_missing_gst, save_menu_workbook
+from menu_excel import add_missing_gst, save_menu_workbook, timing_rows
 
 MENU_API = '/dapi/menu/'
 WAIT_SECONDS = 90
@@ -232,7 +232,17 @@ def parse_menu(data, url):
 
     if not items:
         raise RuntimeError('Restaurant found but no menu items. It may be closed or not deliver to the chosen location.')
-    return restaurant, parse_offers(data), items, addons
+    return restaurant, parse_offers(data), items, addons, parse_timings(info)
+
+
+def parse_timings(info):
+    """Opening hours for each day, plus the current status, e.g. 'Open now, Closes 12:00 am'."""
+    timings_info = info.get('timingsInfo') or {}
+    rows = []
+    for day in (timings_info.get('outletTiming') or {}).get('infoList', []):
+        rows += timing_rows(day.get('title', ''), day.get('subtitle', ''))
+    status = ', '.join(part for part in (timings_info.get('status'), timings_info.get('message')) if part)
+    return rows, f'Status when scraped: {status}' if status else ''
 
 
 def crawl_menu_data(url, headless=False):
@@ -253,10 +263,10 @@ def crawl_menu_data(url, headless=False):
 def save_menu_data(url, headless=False, json_file=None):
     if json_file:
         with open(json_file, encoding='utf-8') as f:
-            restaurant, offers, items, addons = parse_menu(json.load(f), url)
+            restaurant, offers, items, addons, (timings, status) = parse_menu(json.load(f), url)
     else:
-        restaurant, offers, items, addons = crawl_menu_data(url, headless)
-    return save_menu_workbook(restaurant, items, 'Swiggy', offers, addons)
+        restaurant, offers, items, addons, (timings, status) = crawl_menu_data(url, headless)
+    return save_menu_workbook(restaurant, items, 'Swiggy', offers, addons, timings=timings, timing_status=status)
 
 
 if __name__ == '__main__':

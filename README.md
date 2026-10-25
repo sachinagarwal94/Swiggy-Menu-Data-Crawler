@@ -53,6 +53,7 @@ Run either script without a URL and it will ask for one.
 - Offers: offer, coupon code, details
 - Menu items: category, sub-category, item name, description, price (₹), veg/non-veg, in stock, tags (e.g. Bestseller, NEW, item discounts, "Not eligible for coupons"), price note
 - A **Nearby Outlets** sheet (Zomato): other outlets of the same chain with locality, address, delivery and dining ratings with review counts, cost for two and distance. Zomato only puts the first ~9 outlets in the page, ordered by its default location for the city, so this isn't every outlet and isn't sorted by distance from the one you scraped
+- A **Timings** sheet: opening and closing time for every day (one row per opening slot), plus whether the outlet was open when scraped
 - A second sheet, **Add-ons**: one row per option for sizes, variants and add-ons (milk, syrups, extra toppings...), with whether the group is required, how many options can be picked, and the extra price
 
 Packaged goods (bottled water, coffee beans, chocolates) are listed without GST, e.g. ₹119.05 instead of ₹125. Neither site says which items these are or what rate applies, so the scripts add the lowest GST rate (5, 12, 18 or 28%) that turns the price into a whole rupee amount, and record it in the Price Note column.

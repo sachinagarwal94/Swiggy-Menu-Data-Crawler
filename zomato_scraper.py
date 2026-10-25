@@ -4,7 +4,7 @@ import sys
 
 import requests
 
-from menu_excel import add_missing_gst, save_menu_workbook
+from menu_excel import DAYS, add_missing_gst, save_menu_workbook, timing_rows
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -89,7 +89,33 @@ def crawl_menu_data(url):
     if not items:
         raise RuntimeError('Restaurant found but no menu items. It may not deliver to this area right now.')
     offers = [parse_promo(promo) for promo in (menu_list.get('promosOnMenu') or {}).get('promos', [])]
-    return restaurant, [offer for offer in offers if offer['Offer']], items, addons, contact
+    return restaurant, [offer for offer in offers if offer['Offer']], items, addons, contact, parse_timings(basic_info)
+
+
+def expand_days(days_text):
+    """'Mon-Sun' / 'Mon-Fri, Sun' / 'Sat' → list of full day names."""
+    short = [day[:3].lower() for day in DAYS]
+    result = []
+    for part in re.split(r'\s*,\s*', days_text.strip()):
+        ends = [piece.strip()[:3].lower() for piece in re.split(r'\s*[-–]\s*', part)]
+        if not all(end in short for end in ends):
+            result.append(part)  # Unrecognised, keep as written
+            continue
+        start, stop = short.index(ends[0]), short.index(ends[-1])
+        span = range(start, stop + 1) if start <= stop else [*range(start, 7), *range(0, stop + 1)]
+        result += [DAYS[i] for i in span]
+    return result
+
+
+def parse_timings(basic_info):
+    timing = basic_info.get('timing') or {}
+    rows = []
+    for entry in (timing.get('customised_timings') or {}).get('opening_hours', []):
+        for day in expand_days(entry.get('days', '')):
+            rows += timing_rows(day, entry.get('timing', ''))
+    rows.sort(key=lambda row: DAYS.index(row['Day']) if row['Day'] in DAYS else 7)
+    status = ', '.join(part for part in (basic_info.get('res_status_text'), timing.get('timing_desc')) if part)
+    return rows, f'Status when scraped: {status}' if status else ''
 
 
 def find_key(node, key):
@@ -203,12 +229,13 @@ def parse_promo(promo):
 
 
 def save_menu_data(url):
-    restaurant, offers, items, addons, contact = crawl_menu_data(url)
+    restaurant, offers, items, addons, contact, (timings, status) = crawl_menu_data(url)
     try:
         outlets, outlets_note = crawl_chain_outlets(contact, restaurant['Restaurant Name'])
     except Exception as error:  # The menu is still worth saving if the chain page fails
         outlets, outlets_note = [], f'Could not load other outlets: {error}'
-    return save_menu_workbook(restaurant, items, 'Zomato', offers, addons, outlets, outlets_note)
+    return save_menu_workbook(restaurant, items, 'Zomato', offers, addons, outlets, outlets_note,
+                              timings=timings, timing_status=status)
 
 
 if __name__ == '__main__':

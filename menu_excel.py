@@ -12,6 +12,8 @@ ADDON_HEADERS = ['Category', 'Item Name', 'Group', 'Required', 'Max Choices', 'O
                  'In Stock']
 OUTLET_HEADERS = ['Outlet Name', 'Locality', 'Address', 'Delivery Rating', 'Delivery Reviews', 'Dining Rating',
                   'Dining Reviews', 'Cost for Two', 'Distance', 'URL']
+TIMING_HEADERS = ['Day', 'Opens', 'Closes', 'As Shown on App']
+DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 GST_RATES = (5, 12, 18, 28)
 
 
@@ -32,7 +34,18 @@ def add_missing_gst(price):
     return price, 'Listed price, may exclude GST'
 
 
-def save_menu_workbook(restaurant, items, platform, offers=(), addons=(), outlets=(), outlets_note=''):
+def timing_rows(day, slots_text):
+    """Split '8am – 1am' or 'Midnight - 1.00AM, 8.00AM - Midnight' into one row per opening slot."""
+    rows = []
+    for slot in re.split(r'\s*,\s*', slots_text.strip()):
+        parts = re.split(r'\s+[-–]\s+', slot, maxsplit=1)
+        opens, closes = (parts + [''])[:2] if len(parts) == 2 else (slot, '')
+        rows.append({'Day': day, 'Opens': opens, 'Closes': closes, 'As Shown on App': slots_text})
+    return rows
+
+
+def save_menu_workbook(restaurant, items, platform, offers=(), addons=(), outlets=(), outlets_note='',
+                       timings=(), timing_status=''):
     """Write restaurant details, offers, menu items and add-ons to <platform>_<restaurant name>_menu.xlsx."""
     workbook = Workbook()
     worksheet = workbook.active
@@ -75,6 +88,20 @@ def save_menu_workbook(restaurant, items, platform, offers=(), addons=(), outlet
         addon_sheet.append([addon.get(h, '') for h in ADDON_HEADERS])
     for column, width in zip('ABCDEFGHI', (24, 40, 32, 10, 12, 36, 12, 12, 10)):
         addon_sheet.column_dimensions[column].width = width
+
+    # Opening hours, one row per day and slot
+    timing_sheet = workbook.create_sheet('Timings')
+    if timing_status:
+        timing_sheet.append([timing_status])
+    timing_sheet.append(TIMING_HEADERS)
+    for cell in timing_sheet[timing_sheet.max_row]:
+        cell.font = bold
+    for timing in timings:
+        timing_sheet.append([timing.get(h, '') for h in TIMING_HEADERS])
+    if not timings:
+        timing_sheet.append(['No timings found'])
+    for column, width in zip('ABCD', (14, 14, 14, 45)):
+        timing_sheet.column_dimensions[column].width = width
 
     # Other outlets of the same chain
     if outlets or outlets_note:
