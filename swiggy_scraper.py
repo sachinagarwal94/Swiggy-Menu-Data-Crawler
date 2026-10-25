@@ -91,7 +91,31 @@ def parse_item(item_card, category, sub_category):
         'Price': format_price(info),
         'Veg/Non-veg': veg,
         'In Stock': 'No' if info.get('inStock') == 0 else 'Yes',
+        'Tags': ', '.join(item_tags(info)),
     }
+
+
+def item_tags(info):
+    """Item badges such as Bestseller and item-level offers such as '20% OFF'."""
+    tags = [(info.get('ribbon') or {}).get('text')]
+    tags += [' '.join(filter(None, (tag.get('title'), tag.get('subTitle')))) for tag in info.get('offerTags') or []]
+    return [tag for tag in tags if tag]
+
+
+def parse_offers(data):
+    """Restaurant offers, e.g. '60% OFF UPTO ₹120' with coupon code and conditions."""
+    offers = []
+    for offer_group in find_cards(data, 'OfferInfoWithStyle'):
+        for offer in offer_group.get('offers', []):
+            info = offer.get('info', {})
+            header = ' '.join(part for part in (info.get('header'), info.get('offerTag')) if part)
+            if header:
+                offers.append({
+                    'Offer': header,
+                    'Coupon Code': info.get('couponCode', ''),
+                    'Details': info.get('description', ''),
+                })
+    return offers
 
 
 def parse_menu(data, url):
@@ -131,7 +155,7 @@ def parse_menu(data, url):
 
     if not items:
         raise RuntimeError('Restaurant found but no menu items. It may be closed or not deliver to the chosen location.')
-    return restaurant, items
+    return restaurant, parse_offers(data), items
 
 
 def crawl_menu_data(url, headless=False):
@@ -144,8 +168,8 @@ def crawl_menu_data(url, headless=False):
 
 
 def save_menu_data(url, headless=False):
-    restaurant, items = crawl_menu_data(url, headless)
-    return save_menu_workbook(restaurant, items, 'Swiggy')
+    restaurant, offers, items = crawl_menu_data(url, headless)
+    return save_menu_workbook(restaurant, items, 'Swiggy', offers)
 
 
 if __name__ == '__main__':

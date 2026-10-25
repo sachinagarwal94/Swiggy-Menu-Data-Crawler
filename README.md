@@ -30,6 +30,9 @@ Run either script without a URL and it will ask for one.
 **Output:**
 `Swiggy_<Restaurant Name>_menu.xlsx` or `Zomato_<Restaurant Name>_menu.xlsx`, with:
 - Restaurant details: name, address, rating, FSSAI license number, source URL
-- Menu items: category, sub-category, item name, description, price (₹), veg/non-veg, in stock
+- Offers: offer, coupon code, details
+- Menu items: category, sub-category, item name, description, price (₹), veg/non-veg, in stock, tags (e.g. Bestseller, NEW, item discounts, "Not eligible for coupons")
+
+Offers depend on your location and account. Zomato doesn't include restaurant offers in the page for a logged-out visitor, so the Zomato offers section is usually empty; item tags still come through.
 
 **Note:** Please make sure your use complies with Swiggy's and Zomato's terms of service, and keep request volumes low.

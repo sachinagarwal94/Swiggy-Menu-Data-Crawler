@@ -77,16 +77,45 @@ def crawl_menu_data(url):
                     'Price': price,
                     'Veg/Non-veg': ', '.join(dietary),
                     'In Stock': 'Yes' if item.get('item_state', 'available') == 'available' else 'No',
+                    'Tags': ', '.join(item_tags(item)),
                 })
 
     if not items:
         raise RuntimeError('Restaurant found but no menu items. It may not deliver to this area right now.')
-    return restaurant, items
+    offers = [parse_promo(promo) for promo in (menu_list.get('promosOnMenu') or {}).get('promos', [])]
+    return restaurant, [offer for offer in offers if offer['Offer']], items
+
+
+def item_tags(item):
+    """Item badges such as NEW, SPICY or 'Not eligible for coupons'."""
+    tags = [(tag.get('title') or {}).get('text') for tag in item.get('tag_objects') or []]
+    tags += [tag.get('text') for tag in item.get('tag_texts') or []]
+    if item.get('is_bogo_active'):
+        tags.append('Buy 1 Get 1')
+    return list(dict.fromkeys(tag for tag in tags if tag))
+
+
+def collect_text(node):
+    """Gather the display strings of a Zomato UI object, which nests them as {'text': ...}."""
+    if isinstance(node, dict):
+        texts = [node['text']] if isinstance(node.get('text'), str) else []
+        return texts + [t for key, value in node.items() if key != 'text' for t in collect_text(value)]
+    if isinstance(node, list):
+        return [t for value in node for t in collect_text(value)]
+    return []
+
+
+def parse_promo(promo):
+    # Promos were empty on every restaurant checked while logged out, so this reads
+    # their text generically rather than relying on field names we haven't seen
+    texts = list(dict.fromkeys(t.strip() for t in collect_text(promo) if t.strip()))
+    code = promo.get('code') or promo.get('coupon_code') or '' if isinstance(promo, dict) else ''
+    return {'Offer': texts[0] if texts else '', 'Coupon Code': code, 'Details': ' | '.join(texts[1:])}
 
 
 def save_menu_data(url):
-    restaurant, items = crawl_menu_data(url)
-    return save_menu_workbook(restaurant, items, 'Zomato')
+    restaurant, offers, items = crawl_menu_data(url)
+    return save_menu_workbook(restaurant, items, 'Zomato', offers)
 
 
 if __name__ == '__main__':
