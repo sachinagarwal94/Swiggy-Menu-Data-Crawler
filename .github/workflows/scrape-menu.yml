@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       urls:
-        description: '🔗 Paste Zomato restaurant links (comma separated). Swiggy links only work from the double-click launcher on your computer.'
+        description: '🔗 Paste Zomato restaurant links, comma separated (website links or Share links from the app). Swiggy links only work from the double-click launcher on your computer.'
         required: true
   # Or upload a saved Swiggy menu JSON into swiggy-json/ from the GitHub website
   push:
