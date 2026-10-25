@@ -11,11 +11,23 @@ Files are saved as <Platform>_<Restaurant>_<Restaurant ID>_<date>.xlsx.
 import sys
 import traceback
 
+import requests
+
 import swiggy_scraper
 import zomato_scraper
 
 
+def expand_short_link(target):
+    """Links shared from the Zomato app look like https://zoma.to/r/20540756; follow them to the full URL."""
+    if 'zoma.to/' not in target:
+        return target
+    url = target if target.startswith('http') else 'https://' + target
+    response = requests.get(url, headers=zomato_scraper.HEADERS, timeout=30, allow_redirects=True)
+    return response.url
+
+
 def scrape(target):
+    target = expand_short_link(target)
     if target.lower().endswith('.json'):
         return swiggy_scraper.save_menu_data('', json_file=target)
     if 'zomato.com' in target:
