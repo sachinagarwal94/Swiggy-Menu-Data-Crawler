@@ -4,3 +4,5 @@ __pycache__/
 Swiggy_*.json
 output/*.xlsx
 .venv/
+.chrome-profile/
+output/failed.txt

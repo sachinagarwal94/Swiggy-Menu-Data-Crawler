@@ -150,8 +150,15 @@ def main():
     results = [read_workbook(path) for path in sorted(glob.glob(os.path.join(folder, '*.xlsx')))]
 
     out = ['# 🍽️ Menu Scraper', '']
+    failed_file = os.path.join(folder, 'failed.txt')
+    if os.path.exists(failed_file):
+        with open(failed_file, encoding='utf-8') as f:
+            failures = [line.rstrip('\n').split('\t', 1) for line in f if line.strip()]
+        out += ['> [!WARNING]', f"> **{len(failures)} link{'s' if len(failures) != 1 else ''} not scraped**", '>']
+        out += [f'> - {link} — {reason}' for link, reason in failures]
+        out.append('')
     if not results:
-        out.append('> ⚠️ No menus were saved. Open the **scrape** job log below to see which links failed.')
+        out.append('No menus were saved. Open the **scrape** job log below for details.')
         print('\n'.join(out))
         return
     scraped_on = results[0]['restaurant'].get('Scraped On', '')
