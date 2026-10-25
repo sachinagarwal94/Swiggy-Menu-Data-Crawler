@@ -46,10 +46,10 @@ def crawl_menu_data(url):
     menu_list = page.get('order', {}).get('menuList', {})
 
     ratings = (basic_info.get('rating_new') or {}).get('ratings') or {}
-    delivery_rating = (ratings.get('DELIVERY') or {}).get('rating', '')
-    dining_rating = (ratings.get('DINING') or {}).get('rating', '')
-    rating = ', '.join(f'{label} {value}' for label, value in
-                       (('Delivery', delivery_rating), ('Dining', dining_rating)) if value)
+    rating = ', '.join(
+        f"{label} {ratings[key]['rating']} ({ratings[key].get('reviewCount', '?')} reviews)"
+        for key, label in (('DELIVERY', 'Delivery'), ('DINING', 'Dining'))
+        if (ratings.get(key) or {}).get('rating'))
 
     fssai_text = (menu_list.get('fssaiInfo') or {}).get('text', '')
     restaurant = {
@@ -87,7 +87,62 @@ def crawl_menu_data(url):
     if not items:
         raise RuntimeError('Restaurant found but no menu items. It may not deliver to this area right now.')
     offers = [parse_promo(promo) for promo in (menu_list.get('promosOnMenu') or {}).get('promos', [])]
-    return restaurant, [offer for offer in offers if offer['Offer']], items, addons
+    return restaurant, [offer for offer in offers if offer['Offer']], items, addons, contact
+
+
+def find_key(node, key):
+    """Return the first value stored under `key` anywhere in a nested dict/list."""
+    if isinstance(node, dict):
+        if key in node:
+            return node[key]
+        node = list(node.values())
+    if isinstance(node, list):
+        for value in node:
+            found = find_key(value, key)
+            if found is not None:
+                return found
+    return None
+
+
+def crawl_chain_outlets(contact, current_name):
+    """Other outlets of the same chain, from the restaurant's 'See all N outlets' page.
+
+    Zomato only puts the first page of outlets (about 9) in the HTML and loads the rest as you
+    scroll, so this returns that first page plus a note saying how many outlets exist in total.
+    """
+    chain_url = contact.get('res_chain_url')
+    if not chain_url:
+        return [], ''
+    state = fetch_state(chain_url)
+    results = find_key(state, 'SECTION_SEARCH_RESULT') or []
+    meta = (find_key(state, 'SECTION_SEARCH_META_INFO') or {}).get('searchMetaData') or {}
+
+    outlets = []
+    for result in results:
+        if result.get('type') != 'restaurant':
+            continue
+        info = result.get('info', {})
+        ratings = (info.get('ratingNew') or {}).get('ratings') or {}
+        delivery, dining = ratings.get('DELIVERY') or {}, ratings.get('DINING') or {}
+        click_url = (result.get('cardAction') or {}).get('clickUrl', '')
+        outlets.append({
+            'Outlet Name': info.get('name', ''),
+            'Locality': (info.get('locality') or {}).get('name', ''),
+            'Address': (info.get('locality') or {}).get('address', ''),
+            'Delivery Rating': delivery.get('rating', ''),
+            'Delivery Reviews': delivery.get('reviewCount', ''),
+            'Dining Rating': dining.get('rating', ''),
+            'Dining Reviews': dining.get('reviewCount', ''),
+            'Cost for Two': (info.get('cft') or {}).get('text', ''),
+            'Distance': result.get('distance', ''),
+            'URL': 'https://www.zomato.com' + click_url if click_url.startswith('/') else click_url,
+        })
+
+    total = meta.get('totalResults') or len(outlets)
+    note = (f"{contact.get('res_chain_text', current_name + ' outlets')}. Showing the first {len(outlets)} of "
+            f"{total} that Zomato lists on {chain_url}; distances are from Zomato's default location for the city, "
+            f"not from this outlet.")
+    return outlets, note
 
 
 def parse_addons(item, category, modifier_groups, group_ids=None, prefix=''):
@@ -146,8 +201,12 @@ def parse_promo(promo):
 
 
 def save_menu_data(url):
-    restaurant, offers, items, addons = crawl_menu_data(url)
-    return save_menu_workbook(restaurant, items, 'Zomato', offers, addons)
+    restaurant, offers, items, addons, contact = crawl_menu_data(url)
+    try:
+        outlets, outlets_note = crawl_chain_outlets(contact, restaurant['Restaurant Name'])
+    except Exception as error:  # The menu is still worth saving if the chain page fails
+        outlets, outlets_note = [], f'Could not load other outlets: {error}'
+    return save_menu_workbook(restaurant, items, 'Zomato', offers, addons, outlets, outlets_note)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,62 @@
+name: Scrape menu
+
+on:
+  # Run from the Actions tab: Actions → Scrape menu → Run workflow
+  workflow_dispatch:
+    inputs:
+      zomato_url:
+        description: 'Zomato restaurant URL (optional)'
+        required: false
+      swiggy_json:
+        description: 'Path of a saved Swiggy menu JSON in this repo, e.g. swiggy-json/starbucks.json (optional)'
+        required: false
+  # Or upload a Swiggy menu JSON into swiggy-json/ from the GitHub website
+  push:
+    paths:
+      - 'swiggy-json/**.json'
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Scrape Zomato
+        if: ${{ inputs.zomato_url }}
+        working-directory: output
+        env:
+          ZOMATO_URL: ${{ inputs.zomato_url }}
+        run: python ../zomato_scraper.py "$ZOMATO_URL"
+
+      - name: Process Swiggy JSON
+        env:
+          SWIGGY_JSON: ${{ inputs.swiggy_json }}
+        run: |
+          mkdir -p output
+          if [ -n "$SWIGGY_JSON" ]; then
+            files="$SWIGGY_JSON"
+          else
+            # Push trigger: process every JSON changed by the push
+            files=$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" -- 'swiggy-json/*.json' 2>/dev/null || ls swiggy-json/*.json 2>/dev/null)
+          fi
+          for f in $files; do
+            [ -f "$f" ] || continue
+            (cd output && python ../swiggy_scraper.py --json "../$f")
+          done
+
+      - name: Upload spreadsheets
+        uses: actions/upload-artifact@v4
+        with:
+          name: menu-spreadsheets
+          path: output/*.xlsx
+          if-no-files-found: error

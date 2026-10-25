@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 *_menu.xlsx
 Swiggy_menu_response.json
+output/*.xlsx

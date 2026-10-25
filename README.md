@@ -11,6 +11,13 @@ pip install -r requirements.txt
 ```
 The Swiggy script also needs Google Chrome installed. Selenium 4.6+ downloads the matching ChromeDriver automatically, so you don't have to configure a driver path.
 
+**Run it from GitHub (nothing to install):**
+1. Open the repo's **Actions** tab → **Scrape menu** → **Run workflow**.
+2. Paste a Zomato restaurant URL and click **Run workflow**.
+3. When the run finishes (about a minute), open it and download **menu-spreadsheets** under Artifacts.
+
+Swiggy blocks requests from cloud servers, GitHub's included, so for Swiggy save the menu JSON from your browser (see below), upload it to the `swiggy-json/` folder on GitHub (**Add file → Upload files**), and the workflow runs on its own. You can fork the repo to get your own copy of the workflow.
+
 **Usage:**
 
 Zomato (no browser needed):
@@ -37,6 +44,7 @@ Run either script without a URL and it will ask for one.
 - Restaurant details: name, address, rating, FSSAI license number, source URL
 - Offers: offer, coupon code, details
 - Menu items: category, sub-category, item name, description, price (₹), veg/non-veg, in stock, tags (e.g. Bestseller, NEW, item discounts, "Not eligible for coupons"), price note
+- A **Nearby Outlets** sheet (Zomato): other outlets of the same chain with locality, address, delivery and dining ratings with review counts, cost for two and distance. Zomato only puts the first ~9 outlets in the page, ordered by its default location for the city, so this isn't every outlet and isn't sorted by distance from the one you scraped
 - A second sheet, **Add-ons**: one row per option for sizes, variants and add-ons (milk, syrups, extra toppings...), with whether the group is required, how many options can be picked, and the extra price
 
 Packaged goods (bottled water, coffee beans, chocolates) are listed without GST, e.g. ₹119.05 instead of ₹125. Neither site says which items these are or what rate applies, so the scripts add the lowest GST rate (5, 12, 18 or 28%) that turns the price into a whole rupee amount, and record it in the Price Note column.
