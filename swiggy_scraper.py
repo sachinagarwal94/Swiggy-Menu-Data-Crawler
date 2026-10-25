@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import re
 import sys
 import time
@@ -21,6 +22,9 @@ def open_browser(headless=False):
         chrome_options.add_argument('--headless=new')
     # Keep network logs so we can read the menu JSON the page itself downloads
     chrome_options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
+    # Reuse one Chrome profile in the project folder, so the delivery location set on Swiggy is remembered
+    profile_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.chrome-profile')
+    chrome_options.add_argument(f'--user-data-dir={profile_dir}')
     # Selenium 4.6+ downloads the matching chromedriver automatically (Selenium Manager)
     return webdriver.Chrome(options=chrome_options)
 

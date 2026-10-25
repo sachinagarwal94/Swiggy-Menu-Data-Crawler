@@ -1,6 +1,6 @@
 """Build a results page (GitHub Actions job summary) from the scraped Excel files.
 
-Usage: python summary.py <folder with .xlsx files> [run URL]
+Usage: python summary.py <folder with .xlsx files> [download URL of the uploaded zip]
 Prints Markdown; the workflow appends it to $GITHUB_STEP_SUMMARY.
 """
 import glob
@@ -146,17 +146,25 @@ def comparison(results):
 
 def main():
     folder = sys.argv[1] if len(sys.argv) > 1 else '.'
-    run_url = sys.argv[2] if len(sys.argv) > 2 else ''
+    download_url = sys.argv[2] if len(sys.argv) > 2 else ''
     results = [read_workbook(path) for path in sorted(glob.glob(os.path.join(folder, '*.xlsx')))]
 
     out = ['# 🍽️ Menu Scraper', '']
+    failed_file = os.path.join(folder, 'failed.txt')
+    if os.path.exists(failed_file):
+        with open(failed_file, encoding='utf-8') as f:
+            failures = [line.rstrip('\n').split('\t', 1) for line in f if line.strip()]
+        out += ['> [!WARNING]', f"> **{len(failures)} link{'s' if len(failures) != 1 else ''} not scraped**", '>']
+        out += [f'> - {link} — {reason}' for link, reason in failures]
+        out.append('')
     if not results:
-        out.append('> ⚠️ No menus were saved. Open the **scrape** job log below to see which links failed.')
+        out.append('No menus were saved. Open the **scrape** job log below for details.')
         print('\n'.join(out))
         return
     scraped_on = results[0]['restaurant'].get('Scraped On', '')
-    download = f'[⬇️ Download the Excel files]({run_url}#artifacts)' if run_url else '⬇️ Download the Excel files from **Artifacts** below'
-    out += [f"**{len(results)} menu{'s' if len(results) != 1 else ''} scraped** on {scraped_on} · {download}", '']
+    download = (f'### [⬇️ Download the Excel files (zip)]({download_url})' if download_url
+                else '⬇️ Download the Excel files from **Artifacts** at the bottom of this page')
+    out += [download, '', f"**{len(results)} menu{'s' if len(results) != 1 else ''} scraped** on {scraped_on}", '']
     if len(results) > 1:
         out += ['### 📊 Side by side', '', comparison(results), '']
     out += [restaurant_card(data) + '\n\n---\n' for data in results]

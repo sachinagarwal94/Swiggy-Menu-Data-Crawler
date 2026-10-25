@@ -8,6 +8,7 @@ Each URL can be a Zomato restaurant link, a Swiggy restaurant link, a Swiggy men
 API link (swiggy.com/dapi/menu/...), or the path of a saved Swiggy menu .json file.
 Files are saved as <Platform>_<Restaurant>_<Restaurant ID>_<date>.xlsx.
 """
+import os
 import sys
 import traceback
 
@@ -32,9 +33,15 @@ def scrape(target):
         return swiggy_scraper.save_menu_data('', json_file=target)
     if 'zomato.com' in target:
         return zomato_scraper.save_menu_data(target)
-    if 'swiggy.com' in target:
+    if 'swiggy.com' in target or 'swiggy.onelink.me' in target:
+        if os.environ.get('GITHUB_ACTIONS'):
+            raise FriendlyError('Swiggy blocks GitHub, so Swiggy links only work from the launcher on your computer')
         return swiggy_scraper.save_menu_data(target)
-    raise ValueError('Not a Swiggy or Zomato link')
+    raise FriendlyError('Not a Swiggy or Zomato link')
+
+
+class FriendlyError(Exception):
+    """An expected problem: show the message, not a stack trace."""
 
 
 def main():
@@ -46,15 +53,22 @@ def main():
         print(f'\n[{number}/{len(targets)}] {target}')
         try:
             saved.append(scrape(target))
+        except FriendlyError as error:
+            print(f'  Skipped: {error}')
+            failed.append((target, error))
         except Exception as error:
             traceback.print_exc()
-            failed.append((target, error))
+            failed.append((target, str(error).splitlines()[0] if str(error) else type(error).__name__))
 
     print(f'\nDone: {len(saved)} saved, {len(failed)} failed.')
     for file_name in saved:
         print(f'  saved   {file_name}')
     for target, error in failed:
         print(f'  failed  {target}: {error}')
+    if failed:
+        # Read by summary.py to list failed links on the GitHub results page
+        with open('failed.txt', 'w', encoding='utf-8') as f:
+            f.writelines(f'{target}\t{error}\n' for target, error in failed)
     return 1 if failed else 0
 
 
