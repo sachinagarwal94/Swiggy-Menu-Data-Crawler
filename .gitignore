@@ -1,7 +1,8 @@
 __pycache__/
 *.pyc
 *_menu.xlsx
-Swiggy_*.json
+/Swiggy_*.json
+output/Swiggy_*.json
 output/*.xlsx
 .venv/
 .chrome-profile/

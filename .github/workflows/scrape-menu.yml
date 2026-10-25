@@ -8,7 +8,7 @@ on:
       urls:
         description: '🔗 Paste Zomato restaurant links, comma separated (website links or Share links from the app). Swiggy links only work from the double-click launcher on your computer.'
         required: true
-  # Or upload a saved Swiggy menu JSON into swiggy-json/ from the GitHub website
+  # Or upload a Swiggy menu file (saved with the "Get Swiggy Menu" bookmark) into swiggy-json/
   push:
     paths:
       - 'swiggy-json/**.json'
@@ -41,15 +41,21 @@ jobs:
             # Push trigger: the Swiggy JSON files added or changed by this push
             targets=$(git diff --name-only --diff-filter=AM HEAD~1 HEAD -- '../swiggy-json/*.json' | sed 's|^|../|' | paste -sd, -)
           fi
+          if [ -z "$targets" ]; then
+            echo "No new menu files in this push, nothing to do."
+            echo "NOTHING=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
           echo "Scraping: $targets"
           # Keep going if some links fail, so the files that worked are still uploaded
           python ../menu_scraper.py "$targets" || echo "::warning::Some links failed, see the log above"
 
       - name: Set download name
-        if: always()
+        if: always() && env.NOTHING != '1'
         run: echo "TODAY=$(date +%Y-%m-%d)" >> "$GITHUB_ENV"
 
       - name: Upload spreadsheets
+        if: env.NOTHING != '1'
         id: upload
         uses: actions/upload-artifact@v4
         with:
@@ -59,7 +65,7 @@ jobs:
 
       # After the upload, so the page can link straight to the zip download
       - name: Build results page
-        if: always()
+        if: always() && env.NOTHING != '1'
         env:
           DOWNLOAD_URL: ${{ steps.upload.outputs.artifact-url }}
         run: python summary.py output "$DOWNLOAD_URL" >> "$GITHUB_STEP_SUMMARY"
